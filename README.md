@@ -1,3 +1,10 @@
+# FirmSolo - TriforceLinuxSyscallFuzzer
+
+This is a modified version of the TriforceLinuxSyscallFuzzer scripts and files to support fuzzing
+on IoT (ARM and MIPS) kernel modules.
+The TriforceLinuxSyscallFuzzer files have been specifically modified to support the FirmSolo re-hosting
+framework.
+
 # TriforceLinuxSyscallFuzzer
 * 20160613
 * https://github.com/nccgroup/TriforceLinuxSyscallFuzzer
