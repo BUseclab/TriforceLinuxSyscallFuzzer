@@ -1,0 +1,53 @@
+#!/bin/bash
+#
+# usage: ./runFuzz [-C] [-M n | -S n] xtraargs..
+#                   -C continue existing fuzz run
+#                   -M n and -S n for master/slave.  n must be unique
+#                   xtraargs are passed to qemu
+#
+# choose kernel with K=name env variable, ie K=linux34 for linux34/bzImage
+#
+
+set -x
+
+AFL=${TAFL:-/TriforceAFL/}
+KERN=$3
+
+
+# hokey arg parsing, sorry!
+if [ "x$1" = "x-C" ] ; then # continue
+    INP="-"
+    shift
+else
+    INP=${11}
+fi
+
+if [ "x$1" = "x-M" -o "x$1" = "x-S" ] ; then # master/slave args
+    FARGS="$1 $2"
+    shift; shift
+else
+    echo "specify -M n  or -S n  please"
+    exit 1
+fi
+
+
+
+echo $AFL
+echo $1 $2 $3 $4 $5 $6 $7 $8 $9 ${10} ${11} ${12}
+$8 --version
+
+# run fuzzer and qemu-system
+export AFL_SKIP_CRASHES=1
+export AFL_PATH=/TriforceAFL/
+$AFL/afl-fuzz $FARGS -t 900+ -m 6144 -i ${11} -o $3 -QQ -- \
+    $8 \
+    -L $AFL/qemu_mode/qemu/pc-bios \
+    -kernel $KERN \
+    -drive file=privmem:$4 \
+    -m 256M -nographic -append "root=${10} rw init=/init console=${12} fdyne_execute=0 firmadyne.procfs=0 firmadyne.devfs=0 mem=256M" \
+    -M $5 ${13}\
+    -aflPanicAddr $6 \
+    -aflDmesgAddr $9 \
+    -aflFile2 $7 \
+    -aflFile @@ 
+

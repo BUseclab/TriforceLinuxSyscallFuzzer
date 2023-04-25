@@ -1,0 +1,17 @@
+Firmadyne-TriforceAFL crash test user agents
+
+This directory contains the source code of the user agent programs that test kernel modules
+against the bugs found by TriforceAFL during the Firmadyne experiments.
+
+The code is almost identical to the fuzzing harness of TriforceAFL.
+However, instead of receiving input from the fuzzer/QEMU through a hypercall, the
+agent now receives the input from a file as bytes. This is important if we want
+to test for a bug outside TriforceAFL (e.g., Firmadyne or actual IoT device).
+By feeding the input of a crash case to the agent, it will parse it and
+convert it to IOCTLs which will then execute.
+
+The agent takes two inputs: 1) the character device corresponding to a kernel module, and
+2) the crash input generated from TriforceAFL.
+
+
+TODO: Add instructions of how to compile the agent using the different toolchains.

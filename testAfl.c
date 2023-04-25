@@ -16,6 +16,7 @@
 #include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <signal.h>
 
 #include "../TriforceAFL/config.h"
 
@@ -51,6 +52,7 @@ void copyFile(char *dst, char *src) {
 }
 
 int srv[2];
+int child[2];
 unsigned char *map;
 
 int workpid = -1;
@@ -60,7 +62,7 @@ alarmHandler(int sig)
 {
     if(workpid != -1) {
         kill(workpid, SIGKILL);
-        printf("\ntimeout\n");
+        printf("\nTimeout!\n");
     }
 }
 
@@ -74,7 +76,7 @@ intHandler(int sig)
 void
 runTest(char *fname, char *dat)
 {
-    int status, cnt, i, x;
+    int status, cnt, i, x,tmp, qmp_pid,ret,stat;
 
     if(dat)
         writeFile(FUZZFN, dat);
@@ -87,16 +89,22 @@ runTest(char *fname, char *dat)
 
     x = read(srv[0], &workpid, 4);
     xperror(x != 4, "read pid");
+
+
     printf("test running in pid %d\n", workpid);
     fflush(stdout);
-    alarm(2);
+ 	
+    /*printf("Send signal to child to continue\n");*/
+    /*kill(workpid,SIGUSR2); //Send signal to child to continue its execution*/
+    
+    alarm(40);
     do {
         x = read(srv[0], &status, 4);
     } while(x == -1 && errno == EINTR);
     xperror(x != 4, "read status");
     alarm(0);
     workpid = -1;
-    printf("test ended with status %x\n", status);
+    printf("test ended with status %x and bytes read are %d\n", status,x);
     cnt = 0;
     for(i = 0; i < MAP_SIZE; i++) {
         if(map[i]) cnt++;
@@ -117,7 +125,7 @@ int main(int argc, char **argv)
     char **files;
     char idbuf[20], buf[100];
     struct timeval startBoot, startTest, now;
-    int p[2], id, x, pid, status, i;
+    int p[2], id, x, pid, status, i, c[2];
 
     signal(SIGALRM, alarmHandler);
     signal(SIGINT, intHandler);
@@ -132,6 +140,16 @@ int main(int argc, char **argv)
     xperror(x == -1, "pipe2");
     dup2(p[1], FORKSRV_FD+1);
     srv[0] = p[0];
+    
+    /* make forkserver pipes */
+    x = pipe(c);
+    xperror(x == -1, "pipe13");
+    dup2(c[0], FORKSRV_FD - 2);
+    child[1] = c[1];
+    x = pipe(c);
+    xperror(x == -1, "pipe4");
+    dup2(c[1], FORKSRV_FD - 3);
+    child[0] = c[0];
     
     id = shmget(IPC_PRIVATE, MAP_SIZE, IPC_CREAT | IPC_EXCL | 0600);
     map = shmat(id, NULL, 0);
@@ -190,7 +208,7 @@ int main(int argc, char **argv)
         printf("tests:     %d\n", i);
         printf("execs/sec: %.2f\n", i / timeDelta(&startTest, &now));
     }
-
+    
     shmctl(id, IPC_RMID, NULL);
     return 0;
 }
